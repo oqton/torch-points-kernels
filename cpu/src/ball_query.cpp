@@ -8,7 +8,7 @@
 #include <torch/extension.h>
 
 std::pair<at::Tensor, at::Tensor> ball_query(at::Tensor support, at::Tensor query, float radius,
-                                             int max_num, int mode, bool sorted)
+                                             int max_num, int mode, bool sorted, int random_seed)
 {
     CHECK_CONTIGUOUS(support);
     CHECK_CONTIGUOUS(query);
@@ -31,7 +31,7 @@ std::pair<at::Tensor, at::Tensor> ball_query(at::Tensor support, at::Tensor quer
             std::vector<scalar_t>(data_s, data_s + support.size(0) * support.size(1));
 
         max_count = nanoflann_neighbors<scalar_t>(queries_stl, supports_stl, neighbors_indices,
-                                                  neighbors_dists, radius, max_num, mode, sorted);
+                                                  neighbors_dists, radius, max_num, mode, sorted, random_seed);
     });
     auto neighbors_dists_ptr = neighbors_dists.data();
     int64_t* neighbors_indices_ptr = neighbors_indices.data();
@@ -63,7 +63,7 @@ at::Tensor degree(at::Tensor row, int64_t num_nodes)
 
 std::pair<at::Tensor, at::Tensor> batch_ball_query(at::Tensor support, at::Tensor query,
                                                    at::Tensor support_batch, at::Tensor query_batch,
-                                                   float radius, int max_num, int mode, bool sorted)
+                                                   float radius, int max_num, int mode, bool sorted, int random_seed)
 {
     CHECK_CONTIGUOUS(support);
     CHECK_CONTIGUOUS(query);
@@ -105,7 +105,7 @@ std::pair<at::Tensor, at::Tensor> batch_ball_query(at::Tensor support, at::Tenso
 
         max_count = batch_nanoflann_neighbors<scalar_t>(
             queries_stl, supports_stl, query_batch_stl, support_batch_stl, neighbors_indices,
-            neighbors_dists, radius, max_num, mode, sorted);
+            neighbors_dists, radius, max_num, mode, sorted, random_seed);
     });
     auto neighbors_dists_ptr = neighbors_dists.data();
     int64_t* neighbors_indices_ptr = neighbors_indices.data();
@@ -128,7 +128,7 @@ std::pair<at::Tensor, at::Tensor> batch_ball_query(at::Tensor support, at::Tenso
 }
 
 std::pair<at::Tensor, at::Tensor> dense_ball_query(at::Tensor support, at::Tensor query,
-                                                   float radius, int max_num, int mode, bool sorted)
+                                                   float radius, int max_num, int mode, bool sorted, int random_seed)
 {
     CHECK_CONTIGUOUS(support);
     CHECK_CONTIGUOUS(query);
@@ -138,7 +138,7 @@ std::pair<at::Tensor, at::Tensor> dense_ball_query(at::Tensor support, at::Tenso
     vector<at::Tensor> batch_dist;
     for (int i = 0; i < b; i++)
     {
-        auto out_pair = ball_query(query[i], support[i], radius, max_num, mode, sorted);
+        auto out_pair = ball_query(query[i], support[i], radius, max_num, mode, sorted, random_seed);
         batch_idx.push_back(out_pair.first);
         batch_dist.push_back(out_pair.second);
     }

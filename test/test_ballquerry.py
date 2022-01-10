@@ -10,6 +10,7 @@ ROOT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..")
 sys.path.insert(0, ROOT)
 
 from test import run_if_cuda
+import torch_points_kernels.points_cpu as tpcpu
 from torch_points_kernels import ball_query
 
 
@@ -56,6 +57,26 @@ class TestBall(unittest.TestCase):
             for j in range(b.shape[1]):
                 # Because it is not necessary the same order
                 assert set(res_cpu[i][j]) == set(res_cuda[i][j])
+
+    def test_determinism_cpu(self):
+        
+        # a: support points
+        # b: query points
+        a = torch.randn(1, 100, 3).to(torch.float)
+        b = torch.randn(1, 50, 3).to(torch.float)
+        
+        # check if fixed random_seed leads to deterministic results
+        idx, dist = ball_query(1.01, 2, a, b, sort=False, random_seed=42)
+        idx1, dist1 = ball_query(1.01, 2, a, b, sort=False, random_seed=42)
+        torch.testing.assert_allclose(idx, idx1)
+        torch.testing.assert_allclose(dist, dist1)
+
+        # check if random_seed = -1 still leads to non-deterministic behaviour
+        with self.assertRaises(AssertionError):
+            idx, dist = ball_query(1.01, 2, a, b, sort=False)
+            idx1, dist1 = ball_query(1.01, 2, a, b, sort=False)
+            torch.testing.assert_allclose(idx, idx1)
+            torch.testing.assert_allclose(dist, dist1)
 
 
 class TestBallPartial(unittest.TestCase):
@@ -198,7 +219,41 @@ class TestBallPartial(unittest.TestCase):
         for p in idx[i].cpu().detach().numpy():
             if p >= 0 and p < len(batch_a):
                 assert p in idx3_sk[i]
+    
+    def test_determinism_cpu(self):
+        a = torch.randn(100, 3).to(torch.float)
+        b = torch.randn(50, 3).to(torch.float)
+        batch_a = torch.tensor(
+            [0 for i in range(a.shape[0] // 2)] + [1 for i in range(a.shape[0] // 2, a.shape[0])]
+        )
+        batch_b = torch.tensor(
+            [0 for i in range(b.shape[0] // 2)] + [1 for i in range(b.shape[0] // 2, b.shape[0])]
+        )
+        R = 1
 
+        idx, dist = ball_query(
+            R,
+            15,
+            a,
+            b,
+            mode="PARTIAL_DENSE",
+            batch_x=batch_a,
+            batch_y=batch_b,
+            sort=False,
+            random_seed=42
+        )
+        idx1, dist = ball_query(
+            R,
+            15,
+            a,
+            b,
+            mode="PARTIAL_DENSE",
+            batch_x=batch_a,
+            batch_y=batch_b,
+            sort=False,
+            random_seed=42
+        )
+        torch.testing.assert_allclose(idx1, idx)
 
 if __name__ == "__main__":
     unittest.main()

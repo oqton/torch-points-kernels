@@ -8,12 +8,17 @@
 template <typename scalar_t>
 int nanoflann_neighbors(vector<scalar_t>& queries, vector<scalar_t>& supports,
                         vector<int64_t>& neighbors_indices, vector<float>& dists, float radius,
-                        int max_num, int mode, bool sorted)
+                        int max_num, int mode, bool sorted, int random_seed)
 {
     // Initiate variables
     // ******************
-    std::random_device rd;
-    std::mt19937 g(rd());
+    std::mt19937 g;
+    if (random_seed == -1){
+        std::random_device rd;
+        g = std::mt19937(rd());
+    } else {
+        g = std::mt19937(42);
+    }
 
     // square radius
     const float search_radius = static_cast<float>(radius * radius);
@@ -140,13 +145,18 @@ template <typename scalar_t>
 int batch_nanoflann_neighbors(vector<scalar_t>& queries, vector<scalar_t>& supports,
                               vector<int64_t>& q_batches, vector<int64_t>& s_batches,
                               vector<int64_t>& neighbors_indices, vector<float>& dists,
-                              float radius, int max_num, int mode, bool sorted)
+                              float radius, int max_num, int mode, bool sorted, int random_seed)
 {
     // Initiate variables
     // ******************
-    std::random_device rd;
-    std::mt19937 g(rd());
-
+    std::mt19937 g;
+    if (random_seed == -1){
+        std::random_device rd;
+        g = std::mt19937(rd());
+    } else {
+        g = std::mt19937(42);
+    }
+    
     // indices
     int i0 = 0;
 

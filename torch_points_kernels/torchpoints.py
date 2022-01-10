@@ -146,25 +146,29 @@ def grouping_operation(features, idx):
     return grouped_features.reshape(idx.shape[0], features.shape[1], idx.shape[1], idx.shape[2])
 
 
-def ball_query_dense(radius, nsample, xyz, new_xyz, batch_xyz=None, batch_new_xyz=None, sort=False):
+def ball_query_dense(radius, nsample, xyz, new_xyz, batch_xyz=None, batch_new_xyz=None, sort=False, random_seed=-1):
     # type: (Any, float, int, torch.Tensor, torch.Tensor) -> torch.Tensor
     if new_xyz.is_cuda:
         if sort:
             raise NotImplementedError("CUDA version does not sort the neighbors")
+        if random_seed != -1:
+            raise NotImplementedError("CUDA version can not provide determinism by setting random_seed")
         ind, dist = tpcuda.ball_query_dense(new_xyz, xyz, radius, nsample)
     else:
-        ind, dist = tpcpu.dense_ball_query(new_xyz, xyz, radius, nsample, mode=0, sorted=sort)
+        ind, dist = tpcpu.dense_ball_query(new_xyz, xyz, radius, nsample, mode=0, sorted=sort, random_seed=random_seed)
     return ind, dist
 
 
-def ball_query_partial_dense(radius, nsample, x, y, batch_x, batch_y, sort=False):
+def ball_query_partial_dense(radius, nsample, x, y, batch_x, batch_y, sort=False, random_seed=-1):
     # type: (Any, float, int, torch.Tensor, torch.Tensor) -> torch.Tensor
     if x.is_cuda:
         if sort:
             raise NotImplementedError("CUDA version does not sort the neighbors")
+        if random_seed != -1:
+            raise NotImplementedError("CUDA version can not provide determinism by setting random_seed")
         ind, dist = tpcuda.ball_query_partial_dense(x, y, batch_x, batch_y, radius, nsample)
     else:
-        ind, dist = tpcpu.batch_ball_query(x, y, batch_x, batch_y, radius, nsample, mode=0, sorted=sort)
+        ind, dist = tpcpu.batch_ball_query(x, y, batch_x, batch_y, radius, nsample, mode=0, sorted=sort, random_seed=random_seed)
     return ind, dist
 
 
@@ -177,6 +181,7 @@ def ball_query(
     batch_x: Optional[torch.tensor] = None,
     batch_y: Optional[torch.tensor] = None,
     sort: Optional[bool] = False,
+    random_seed: Optional[int] = -1
 ) -> torch.Tensor:
     """
     Arguments:
@@ -207,12 +212,12 @@ def ball_query(
         assert x.size(0) == batch_x.size(0)
         assert y.size(0) == batch_y.size(0)
         assert x.dim() == 2
-        return ball_query_partial_dense(radius, nsample, x, y, batch_x, batch_y, sort=sort)
+        return ball_query_partial_dense(radius, nsample, x, y, batch_x, batch_y, sort=sort, random_seed=random_seed)
 
     elif mode.lower() == "dense":
         if (batch_x is not None) or (batch_y is not None):
             raise Exception("batch_x and batch_y should not be provided")
         assert x.dim() == 3
-        return ball_query_dense(radius, nsample, x, y, sort=sort)
+        return ball_query_dense(radius, nsample, x, y, sort=sort, random_seed=random_seed)
     else:
         raise Exception("unrecognized mode {}".format(mode))
